@@ -38,6 +38,12 @@ import org.springframework.samples.petclinic.model.Visit;
 public interface ClinicService {
 
 	Pet findPetById(int id) throws DataAccessException;
+	/**
+	 * Finds a pet only if it belongs to the given owner.
+	 *
+	 * @return the pet, or {@code null} if the owner does not exist or does not own that pet
+	 */
+	Pet findPetByOwner(int ownerId, int petId) throws DataAccessException;
 	Collection<Pet> findAllPets() throws DataAccessException;
     Page<Pet> findPets(Pageable pageable) throws DataAccessException;
 	void savePet(Pet pet) throws DataAccessException;

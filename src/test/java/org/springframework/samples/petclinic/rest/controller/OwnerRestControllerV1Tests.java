@@ -27,7 +27,10 @@ import org.springframework.http.MediaType;
 import org.springframework.samples.petclinic.mapper.OwnerMapper;
 import org.springframework.samples.petclinic.mapper.PetMapper;
 import org.springframework.samples.petclinic.mapper.VisitMapper;
+import org.mockito.ArgumentCaptor;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.Pet;
+import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.rest.advice.ExceptionControllerAdvice;
 import org.springframework.samples.petclinic.rest.dto.OwnerDto;
 import org.springframework.samples.petclinic.rest.dto.PetDto;
@@ -51,7 +54,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -519,6 +525,7 @@ class OwnerRestControllerV1Tests {
     @Test
     @WithMockUser(roles = "OWNER_ADMIN")
     void testCreateVisitSuccess() throws Exception {
+        given(this.clinicService.findPetByOwner(1, 1)).willReturn(petMapper.toPet(pets.get(0)));
         VisitDto newVisit = visits.get(0);
         newVisit.setId(999);
         ObjectMapper mapper = new ObjectMapper();
@@ -533,10 +540,9 @@ class OwnerRestControllerV1Tests {
     @WithMockUser(roles = "OWNER_ADMIN")
     void testGetOwnerPetSuccess() throws Exception {
         var owner = ownerMapper.toOwner(owners.get(0));
-        given(this.clinicService.findOwnerById(2)).willReturn(owner);
         var pet = petMapper.toPet(pets.get(0));
         pet.setOwner(owner);
-        given(this.clinicService.findPetById(1)).willReturn(pet);
+        given(this.clinicService.findPetByOwner(2, 1)).willReturn(pet);
         this.mockMvc.perform(get("/api/owners/2/pets/1")
                 .accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
@@ -569,8 +575,7 @@ class OwnerRestControllerV1Tests {
     void testUpdateOwnersPetSuccess() throws Exception {
         int ownerId = owners.get(0).getId();
         int petId = pets.get(0).getId();
-        given(this.clinicService.findOwnerById(ownerId)).willReturn(ownerMapper.toOwner(owners.get(0)));
-        given(this.clinicService.findPetById(petId)).willReturn(petMapper.toPet(pets.get(0)));
+        given(this.clinicService.findPetByOwner(ownerId, petId)).willReturn(petMapper.toPet(pets.get(0)));
         PetDto updatedPetDto = pets.get(0);
         updatedPetDto.setName("Rex");
         updatedPetDto.setBirthDate(LocalDate.of(2020, 1, 15));
@@ -590,7 +595,7 @@ class OwnerRestControllerV1Tests {
     void testUpdateOwnersPetOwnerNotFound() throws Exception {
         int ownerId = 0;
         int petId = pets.get(0).getId();
-        given(this.clinicService.findOwnerById(ownerId)).willReturn(null);
+        given(this.clinicService.findPetByOwner(ownerId, petId)).willReturn(null);
         PetDto petDto = pets.get(0);
         petDto.setName("Thor");
         ObjectMapper mapper =  JsonMapper.builder()
@@ -608,8 +613,7 @@ class OwnerRestControllerV1Tests {
     void testUpdateOwnersPetPetNotFound() throws Exception {
         int ownerId = owners.get(0).getId();
         int petId = 0;
-        given(this.clinicService.findOwnerById(ownerId)).willReturn(ownerMapper.toOwner(owners.get(0)));
-        given(this.clinicService.findPetById(petId)).willReturn(null);
+        given(this.clinicService.findPetByOwner(ownerId, petId)).willReturn(null);
         PetDto petDto = pets.get(0);
         petDto.setName("Ghost");
         petDto.setBirthDate(LocalDate.of(2020, 1, 1));
@@ -621,6 +625,70 @@ class OwnerRestControllerV1Tests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updatedPetAsJSON))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreateVisitForPetOfAnotherOwnerReturnsNotFound() throws Exception {
+        // pet 7 exists but belongs to a different owner
+        given(this.clinicService.findPetByOwner(1, 7)).willReturn(null);
+        this.mockMvc.perform(post("/api/owners/1/pets/7/visits")
+                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isNotFound());
+        verify(this.clinicService, never()).saveVisit(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreateVisitForUnknownOwnerReturnsNotFound() throws Exception {
+        given(this.clinicService.findPetByOwner(9999, 7)).willReturn(null);
+        this.mockMvc.perform(post("/api/owners/9999/pets/7/visits")
+                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isNotFound());
+        verify(this.clinicService, never()).saveVisit(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreateVisitIsAttachedToTheOwnersPet() throws Exception {
+        Pet pet = petMapper.toPet(pets.get(0));
+        given(this.clinicService.findPetByOwner(1, pet.getId())).willReturn(pet);
+        this.mockMvc.perform(post("/api/owners/1/pets/" + pet.getId() + "/visits")
+                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.petId").value(pet.getId()));
+        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
+        verify(this.clinicService).saveVisit(saved.capture());
+        assertThat(saved.getValue().getPet()).isSameAs(pet);
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testCreateVisitWithoutDateDefaultsToToday() throws Exception {
+        Pet pet = petMapper.toPet(pets.get(0));
+        given(this.clinicService.findPetByOwner(1, pet.getId())).willReturn(pet);
+        this.mockMvc.perform(post("/api/owners/1/pets/" + pet.getId() + "/visits")
+                .content("{\"description\":\"annual checkup\"}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isCreated());
+        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
+        verify(this.clinicService).saveVisit(saved.capture());
+        assertThat(saved.getValue().getDate()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testUpdatePetOfAnotherOwnerReturnsNotFound() throws Exception {
+        // pet 7 exists but belongs to a different owner
+        given(this.clinicService.findPetByOwner(1, 7)).willReturn(null);
+        this.mockMvc.perform(put("/api/owners/1/pets/7")
+                .content("{\"name\":\"Hijacked\",\"birthDate\":\"2012-09-04\",\"type\":{\"id\":1,\"name\":\"cat\"}}")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNotFound());
+        verify(this.clinicService, never()).savePet(any());
     }
 
 }

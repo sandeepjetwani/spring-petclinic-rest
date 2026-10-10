@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.mockito.ArgumentCaptor;
 import org.springframework.samples.petclinic.mapper.VisitMapper;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.model.Pet;
@@ -42,7 +43,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -240,6 +243,33 @@ class VisitRestControllerV1Tests {
         this.mockMvc.perform(delete("/api/visits/999")
     		.content(newVisitAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
         	.andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testUpdateVisitWithoutDateKeepsExistingDate() throws Exception {
+        Visit existing = visits.get(0);
+        existing.setDate(LocalDate.of(2013, 1, 1));
+        given(this.clinicService.findVisitById(2)).willReturn(existing);
+        this.mockMvc.perform(put("/api/visits/2")
+                .content("{\"description\":\"rabies shot, second dose\"}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isNoContent());
+        verify(this.clinicService).saveVisit(existing);
+        assertThat(existing.getDate()).isEqualTo(LocalDate.of(2013, 1, 1));
+        assertThat(existing.getDescription()).isEqualTo("rabies shot, second dose");
+    }
+
+    @Test
+    @WithMockUser(roles="OWNER_ADMIN")
+    void testCreateVisitWithoutDateDefaultsToToday() throws Exception {
+        this.mockMvc.perform(post("/api/visits")
+                .content("{\"description\":\"annual checkup\",\"petId\":8}")
+                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
+            .andExpect(status().isCreated());
+        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
+        verify(this.clinicService).saveVisit(saved.capture());
+        assertThat(saved.getValue().getDate()).isEqualTo(LocalDate.now());
     }
 
 }
