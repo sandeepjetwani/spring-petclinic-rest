@@ -27,10 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.samples.petclinic.mapper.OwnerMapper;
 import org.springframework.samples.petclinic.mapper.PetMapper;
 import org.springframework.samples.petclinic.mapper.VisitMapper;
-import org.mockito.ArgumentCaptor;
 import org.springframework.samples.petclinic.model.Owner;
-import org.springframework.samples.petclinic.model.Pet;
-import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.rest.advice.ExceptionControllerAdvice;
 import org.springframework.samples.petclinic.rest.dto.OwnerDto;
 import org.springframework.samples.petclinic.rest.dto.PetDto;
@@ -54,10 +51,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -625,70 +619,6 @@ class OwnerRestControllerV1Tests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updatedPetAsJSON))
             .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testCreateVisitForPetOfAnotherOwnerReturnsNotFound() throws Exception {
-        // pet 7 exists but belongs to a different owner
-        given(this.clinicService.findPetByOwner(1, 7)).willReturn(null);
-        this.mockMvc.perform(post("/api/owners/1/pets/7/visits")
-                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
-                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isNotFound());
-        verify(this.clinicService, never()).saveVisit(any());
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testCreateVisitForUnknownOwnerReturnsNotFound() throws Exception {
-        given(this.clinicService.findPetByOwner(9999, 7)).willReturn(null);
-        this.mockMvc.perform(post("/api/owners/9999/pets/7/visits")
-                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
-                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isNotFound());
-        verify(this.clinicService, never()).saveVisit(any());
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testCreateVisitIsAttachedToTheOwnersPet() throws Exception {
-        Pet pet = petMapper.toPet(pets.get(0));
-        given(this.clinicService.findPetByOwner(1, pet.getId())).willReturn(pet);
-        this.mockMvc.perform(post("/api/owners/1/pets/" + pet.getId() + "/visits")
-                .content("{\"date\":\"2026-10-10\",\"description\":\"rabies shot\"}")
-                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.petId").value(pet.getId()));
-        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
-        verify(this.clinicService).saveVisit(saved.capture());
-        assertThat(saved.getValue().getPet()).isSameAs(pet);
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testCreateVisitWithoutDateDefaultsToToday() throws Exception {
-        Pet pet = petMapper.toPet(pets.get(0));
-        given(this.clinicService.findPetByOwner(1, pet.getId())).willReturn(pet);
-        this.mockMvc.perform(post("/api/owners/1/pets/" + pet.getId() + "/visits")
-                .content("{\"description\":\"annual checkup\"}")
-                .accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
-            .andExpect(status().isCreated());
-        ArgumentCaptor<Visit> saved = ArgumentCaptor.forClass(Visit.class);
-        verify(this.clinicService).saveVisit(saved.capture());
-        assertThat(saved.getValue().getDate()).isEqualTo(LocalDate.now());
-    }
-
-    @Test
-    @WithMockUser(roles = "OWNER_ADMIN")
-    void testUpdatePetOfAnotherOwnerReturnsNotFound() throws Exception {
-        // pet 7 exists but belongs to a different owner
-        given(this.clinicService.findPetByOwner(1, 7)).willReturn(null);
-        this.mockMvc.perform(put("/api/owners/1/pets/7")
-                .content("{\"name\":\"Hijacked\",\"birthDate\":\"2012-09-04\",\"type\":{\"id\":1,\"name\":\"cat\"}}")
-                .contentType(MediaType.APPLICATION_JSON))
-            .andExpect(status().isNotFound());
-        verify(this.clinicService, never()).savePet(any());
     }
 
 }

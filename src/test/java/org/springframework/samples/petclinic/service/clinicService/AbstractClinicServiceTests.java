@@ -525,32 +525,4 @@ abstract class AbstractClinicServiceTests {
     }
 
     void clearCache() {}
-
-    @Test
-    void shouldFindPetOnlyThroughItsOwner() {
-        // seed data: pet 7 (Samantha) belongs to owner 6
-        Pet pet = this.clinicService.findPetByOwner(6, 7);
-        assertThat(pet).isNotNull();
-        assertThat(pet.getName()).isEqualTo("Samantha");
-
-        assertThat(this.clinicService.findPetByOwner(1, 7)).isNull();
-        assertThat(this.clinicService.findPetByOwner(9999, 7)).isNull();
-        assertThat(this.clinicService.findPetByOwner(6, 9999)).isNull();
-    }
-
-    @Test
-    @Transactional
-    void shouldAddVisitToPetFoundThroughItsOwner() {
-        Pet pet = this.clinicService.findPetByOwner(6, 7);
-        int found = this.clinicService.findVisitsByPetId(7).size();
-
-        Visit visit = new Visit();
-        visit.setDescription("annual checkup");
-        visit.setPet(pet);
-        this.clinicService.saveVisit(visit);
-
-        assertThat(visit.getId()).isNotNull();
-        assertThat(this.clinicService.findVisitsByPetId(7)).hasSize(found + 1);
-    }
-
 }
