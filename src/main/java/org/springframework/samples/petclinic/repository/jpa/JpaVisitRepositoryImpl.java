@@ -15,6 +15,7 @@
  */
 package org.springframework.samples.petclinic.repository.jpa;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
@@ -80,5 +81,14 @@ public class JpaVisitRepositoryImpl implements VisitRepository {
 	public void delete(Visit visit) throws DataAccessException {
         this.em.remove(this.em.contains(visit) ? visit : this.em.merge(visit));
 	}
+
+    @Override
+    public List<Visit> findByVetIdAndDate(int vetId, LocalDate date) throws DataAccessException {
+        return this.em.createQuery(
+                "SELECT v FROM Visit v WHERE v.vet.id = :vetId AND v.date = :date ORDER BY v.startTime", Visit.class)
+            .setParameter("vetId", vetId)
+            .setParameter("date", date)
+            .getResultList();
+    }
 
 }

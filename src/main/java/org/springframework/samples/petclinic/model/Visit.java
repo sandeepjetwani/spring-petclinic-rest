@@ -18,6 +18,7 @@ package org.springframework.samples.petclinic.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * Simple JavaBean domain object representing a visit.
@@ -47,6 +48,23 @@ public class Visit extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "pet_id")
     private Pet pet;
+
+    /**
+     * Vet the visit is booked with; {@code null} for visits recorded without an appointment.
+     */
+    @ManyToOne
+    @JoinColumn(name = "vet_id")
+    private Vet vet;
+
+    @Column(name = "start_time")
+    private LocalTime startTime;
+
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private VisitStatus status = VisitStatus.SCHEDULED;
 
 
     /**
@@ -109,6 +127,57 @@ public class Visit extends BaseEntity {
      */
     public void setPet(Pet pet) {
         this.pet = pet;
+    }
+
+    public Vet getVet() {
+        return this.vet;
+    }
+
+    public void setVet(Vet vet) {
+        this.vet = vet;
+    }
+
+    public LocalTime getStartTime() {
+        return this.startTime;
+    }
+
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public Integer getDurationMinutes() {
+        return this.durationMinutes;
+    }
+
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public VisitStatus getStatus() {
+        return this.status;
+    }
+
+    public void setStatus(VisitStatus status) {
+        this.status = status;
+    }
+
+    /**
+     * @return {@code true} if this visit occupies a time slot in a vet's schedule
+     */
+    @Transient
+    public boolean isScheduledAppointment() {
+        return this.status == VisitStatus.SCHEDULED && this.startTime != null && this.durationMinutes != null;
+    }
+
+    /**
+     * @return the time the appointment ends, or {@code null} if this visit has no time slot
+     */
+    @Transient
+    public LocalTime getEndTime() {
+        if (this.startTime == null || this.durationMinutes == null) {
+            return null;
+        }
+        return this.startTime.plusMinutes(this.durationMinutes);
     }
 
 }

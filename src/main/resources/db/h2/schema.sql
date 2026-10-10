@@ -56,8 +56,14 @@ CREATE TABLE IF NOT EXISTS visits (
   pet_id INTEGER NOT NULL,
   visit_date DATE NOT NULL,
   description VARCHAR(255) NOT NULL,
-  FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+  vet_id INTEGER,
+  start_time TIME,
+  duration_minutes INTEGER,
+  status VARCHAR(20) DEFAULT 'SCHEDULED' NOT NULL,
+  FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+  FOREIGN KEY (vet_id) REFERENCES vets(id) ON DELETE SET NULL
 );
+CREATE INDEX IF NOT EXISTS visits_vet_date ON visits (vet_id, visit_date);
 
 CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(20) NOT NULL PRIMARY KEY,

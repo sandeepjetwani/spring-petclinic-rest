@@ -66,6 +66,12 @@ INSERT INTO visits (pet_id, visit_date, description) VALUES
 (8, '2013-01-03', 'neutered'),
 (7, '2013-01-04', 'spayed');
 
+-- Insert vet appointments
+INSERT INTO visits (pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) VALUES
+(1, '2026-11-02', 'annual checkup', 2, '10:00', 30, 'SCHEDULED'),
+(3, '2026-11-02', 'vaccination', 2, '11:00', 45, 'SCHEDULED'),
+(2, '2026-11-03', 'dental check', 3, '09:30', 30, 'CANCELLED');
+
 -- Insert Admin User
 INSERT INTO users (username, password, enabled) VALUES
 ('admin', '$2a$10$ymaklWBnpBKlgdMgkjWVF.GMGyvH8aDuTK.glFOaKw712LHtRRymS', TRUE);

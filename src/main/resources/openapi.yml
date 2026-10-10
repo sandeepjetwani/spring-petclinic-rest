@@ -25,6 +25,8 @@ tags:
     description: Endpoints related to vets.
   - name: visits
     description: Endpoints related to vet visits.
+  - name: appointments
+    description: Booking, listing and cancelling vet appointments.
   - name: pettypes
     description: Endpoints related to pet types.
   - name: specialties
@@ -1844,6 +1846,171 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
+  /vets/{vetId}/appointments:
+    post:
+      tags:
+        - appointments
+      operationId: bookAppointment
+      summary: Books an appointment with a vet
+      description: >-
+        Books a pet with the vet for a time slot. Appointments must fall within opening hours
+        (09:00-17:00), start on a 15-minute boundary, last 15-120 minutes in steps of 15, be in
+        the future, and not overlap another appointment of the same vet or the same pet.
+      parameters:
+        - name: vetId
+          in: path
+          description: The ID of the vet.
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            example: 2
+      requestBody:
+        description: The appointment to book.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentFields'
+        required: true
+      responses:
+        201:
+          description: The appointment was booked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        400:
+          description: Bad request, or the slot breaks a booking rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        404:
+          description: Vet or pet not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        409:
+          description: The vet or the pet already has an overlapping appointment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        500:
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+  /vets/{vetId}/schedule:
+    get:
+      tags:
+        - appointments
+      operationId: getVetSchedule
+      summary: Gets a vet's schedule for a day
+      description: Returns the vet's scheduled appointments on the given date and the 30-minute slots still free to book.
+      parameters:
+        - name: vetId
+          in: path
+          description: The ID of the vet.
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            example: 2
+        - name: date
+          in: query
+          description: The day to list.
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-11-02'
+      responses:
+        200:
+          description: The vet's schedule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VetSchedule'
+        400:
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        404:
+          description: Vet not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        500:
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+  /vets/{vetId}/appointments/{visitId}/cancel:
+    post:
+      tags:
+        - appointments
+      operationId: cancelAppointment
+      summary: Cancels an appointment
+      description: Cancels a booked appointment that has not started yet. The visit is kept with status CANCELLED and its slot becomes free.
+      parameters:
+        - name: vetId
+          in: path
+          description: The ID of the vet.
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            example: 2
+        - name: visitId
+          in: path
+          description: The ID of the appointment (visit).
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            example: 5
+      responses:
+        200:
+          description: The appointment was cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        400:
+          description: The visit is not a booked appointment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        404:
+          description: Appointment not found for this vet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        409:
+          description: The appointment is already cancelled or has already started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        500:
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
   /users:
     post:
       tags:
@@ -1897,6 +2064,84 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
 components:
   schemas:
+    AppointmentFields:
+      title: Appointment fields
+      description: The details of an appointment to book.
+      type: object
+      properties:
+        petId:
+          title: Pet ID
+          description: The pet to book.
+          type: integer
+          format: int32
+          minimum: 0
+          example: 1
+        date:
+          title: Date
+          description: The day of the appointment.
+          type: string
+          format: date
+          example: '2026-11-02'
+        startTime:
+          title: Start time
+          description: Start of the appointment (HH:mm, 24-hour).
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          example: '10:30'
+        durationMinutes:
+          title: Duration
+          description: Length of the appointment in minutes, in steps of 15.
+          type: integer
+          format: int32
+          minimum: 15
+          maximum: 120
+          default: 30
+          example: 30
+        description:
+          title: Description
+          description: The reason for the visit.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 'annual checkup'
+      required:
+        - petId
+        - date
+        - startTime
+        - description
+    VetSchedule:
+      title: Vet schedule
+      description: A vet's appointments for one day and the slots still free.
+      type: object
+      properties:
+        vetId:
+          title: Vet ID
+          type: integer
+          format: int32
+          example: 2
+        date:
+          title: Date
+          type: string
+          format: date
+          example: '2026-11-02'
+        appointments:
+          title: Appointments
+          description: Scheduled (not cancelled) appointments, ordered by start time.
+          type: array
+          items:
+            $ref: '#/components/schemas/Visit'
+        availableSlots:
+          title: Available slots
+          description: Start times (HH:mm) of free 30-minute slots within opening hours.
+          type: array
+          items:
+            type: string
+            example: '09:00'
+      required:
+        - vetId
+        - date
+        - appointments
+        - availableSlots
     ProblemDetail:
       title: Problem Detail
       description: The schema for all error responses.
@@ -2302,6 +2547,37 @@ components:
               format: int32
               minimum: 0
               example: 1
+            vetId:
+              title: Vet ID
+              description: The vet the visit is booked with. Absent for visits recorded without an appointment.
+              type: integer
+              format: int32
+              minimum: 0
+              example: 2
+              readOnly: true
+            startTime:
+              title: Start time
+              description: Start of the appointment (HH:mm). Absent for visits recorded without an appointment.
+              type: string
+              pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+              example: '10:30'
+              readOnly: true
+            durationMinutes:
+              title: Duration
+              description: Length of the appointment in minutes.
+              type: integer
+              format: int32
+              example: 30
+              readOnly: true
+            status:
+              title: Status
+              description: SCHEDULED or CANCELLED.
+              type: string
+              enum:
+                - SCHEDULED
+                - CANCELLED
+              example: SCHEDULED
+              readOnly: true
           required:
             - id
             - petId

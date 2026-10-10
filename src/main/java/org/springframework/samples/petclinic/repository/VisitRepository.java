@@ -15,6 +15,7 @@
  */
 package org.springframework.samples.petclinic.repository;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
@@ -49,5 +50,10 @@ public interface VisitRepository {
 	Collection<Visit> findAll() throws DataAccessException;
 
 	void delete(Visit visit) throws DataAccessException;
+
+    /**
+     * All visits booked with a vet on a given day, in any status, ordered by start time.
+     */
+    List<Visit> findByVetIdAndDate(int vetId, LocalDate date) throws DataAccessException;
 
 }

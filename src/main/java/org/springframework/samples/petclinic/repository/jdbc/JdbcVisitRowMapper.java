@@ -17,11 +17,14 @@ package org.springframework.samples.petclinic.repository.jdbc;
 
 
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.samples.petclinic.model.Vet;
 import org.springframework.samples.petclinic.model.Visit;
+import org.springframework.samples.petclinic.model.VisitStatus;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * {@link RowMapper} implementation mapping data from a {@link ResultSet} to the corresponding properties
@@ -35,6 +38,16 @@ class JdbcVisitRowMapper implements RowMapper<Visit> {
         visit.setId(rs.getInt("visit_id"));
         visit.setDate(rs.getObject("visit_date", LocalDate.class));
         visit.setDescription(rs.getString("description"));
+        Integer vetId = rs.getObject("vet_id", Integer.class);
+        if (vetId != null) {
+            Vet vet = new Vet();
+            vet.setId(vetId);
+            visit.setVet(vet);
+        }
+        visit.setStartTime(rs.getObject("start_time", LocalTime.class));
+        visit.setDurationMinutes(rs.getObject("duration_minutes", Integer.class));
+        String status = rs.getString("status");
+        visit.setStatus(status == null ? VisitStatus.SCHEDULED : VisitStatus.valueOf(status));
         return visit;
     }
 }
