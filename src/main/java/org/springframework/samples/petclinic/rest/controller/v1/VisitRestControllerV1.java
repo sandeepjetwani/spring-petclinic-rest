@@ -90,7 +90,9 @@ public class VisitRestControllerV1 implements VisitsApi {
         if (currentVisit == null) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        currentVisit.setDate(visitDto.getDate());
+        if (visitDto.getDate() != null) {
+            currentVisit.setDate(visitDto.getDate());
+        }
         currentVisit.setDescription(visitDto.getDescription());
         this.clinicService.saveVisit(currentVisit);
         return new ResponseEntity<>(visitMapper.toVisitDto(currentVisit), HttpStatus.NO_CONTENT);
