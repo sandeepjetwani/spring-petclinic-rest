@@ -30,11 +30,15 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.samples.petclinic.rest.controller.BindingErrorsResponse;
 import org.springframework.samples.petclinic.rest.dto.ValidationMessageDto;
+import org.springframework.samples.petclinic.service.AppointmentConflictException;
+import org.springframework.samples.petclinic.service.InvalidAppointmentException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Global Exception handler for REST controllers.
@@ -144,6 +148,53 @@ public class ExceptionControllerAdvice {
             detail.setProperty("schemaValidationErrors", schemaValidationErrors);
             return ResponseEntity.status(status).body(detail);
         }
+        return ResponseEntity.status(status).body(detail);
+    }
+
+    /**
+     * Handles a booking that clashes with an existing appointment, or a change to an appointment
+     * that is already cancelled or has started.
+     *
+     * @param e The {@link AppointmentConflictException} to be handled
+     * @param request {@link HttpServletRequest} object referring to the current request.
+     * @return A {@link ResponseEntity} containing the error information and a 409 Conflict status
+     */
+    @ExceptionHandler(AppointmentConflictException.class)
+    @ResponseBody
+    public ResponseEntity<ProblemDetail> handleAppointmentConflictException(AppointmentConflictException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.CONFLICT;
+        ProblemDetail detail = this.detailBuild(e, status, request.getRequestURL(), e.getMessage());
+        return ResponseEntity.status(status).body(detail);
+    }
+
+    /**
+     * Handles a booking request that breaks a scheduling rule, such as opening hours.
+     *
+     * @param e The {@link InvalidAppointmentException} to be handled
+     * @param request {@link HttpServletRequest} object referring to the current request.
+     * @return A {@link ResponseEntity} containing the error information and a 400 Bad Request status
+     */
+    @ExceptionHandler(InvalidAppointmentException.class)
+    @ResponseBody
+    public ResponseEntity<ProblemDetail> handleInvalidAppointmentException(InvalidAppointmentException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        ProblemDetail detail = this.detailBuild(e, status, request.getRequestURL(), e.getMessage());
+        return ResponseEntity.status(status).body(detail);
+    }
+
+    /**
+     * Handles a missing or unparseable request parameter, such as a schedule request without a valid
+     * {@code date}. Without this, the general handler would report these client errors as 500.
+     *
+     * @param e The exception to be handled
+     * @param request {@link HttpServletRequest} object referring to the current request.
+     * @return A {@link ResponseEntity} containing the error information and a 400 Bad Request status
+     */
+    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    @ResponseBody
+    public ResponseEntity<ProblemDetail> handleInvalidRequestParameter(Exception e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        ProblemDetail detail = this.detailBuild(e, status, request.getRequestURL(), ERROR_INVALID_REQUEST);
         return ResponseEntity.status(status).body(detail);
     }
 

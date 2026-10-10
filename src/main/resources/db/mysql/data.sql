@@ -47,10 +47,13 @@ INSERT IGNORE INTO pets VALUES (11, 'Freddy', '2000-03-09', 5, 9);
 INSERT IGNORE INTO pets VALUES (12, 'Lucky', '2000-06-24', 2, 10);
 INSERT IGNORE INTO pets VALUES (13, 'Sly', '2002-06-08', 1, 10);
 
-INSERT IGNORE INTO visits VALUES (1, 7, '2010-03-04', 'rabies shot');
-INSERT IGNORE INTO visits VALUES (2, 8, '2011-03-04', 'rabies shot');
-INSERT IGNORE INTO visits VALUES (3, 8, '2009-06-04', 'neutered');
-INSERT IGNORE INTO visits VALUES (4, 7, '2008-09-04', 'spayed');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description) VALUES (1, 7, '2010-03-04', 'rabies shot');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description) VALUES (2, 8, '2011-03-04', 'rabies shot');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description) VALUES (3, 8, '2009-06-04', 'neutered');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description) VALUES (4, 7, '2008-09-04', 'spayed');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) VALUES (5, 1, '2026-11-02', 'annual checkup', 2, '10:00:00', 30, 'SCHEDULED');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) VALUES (6, 3, '2026-11-02', 'vaccination', 2, '11:00:00', 45, 'SCHEDULED');
+INSERT IGNORE INTO visits (id, pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) VALUES (7, 2, '2026-11-03', 'dental check', 3, '09:30:00', 30, 'CANCELLED');
 
 INSERT IGNORE INTO users (username, password, enabled) VALUES
 ('admin', '$2a$10$ymaklWBnpBKlgdMgkjWVF.GMGyvH8aDuTK.glFOaKw712LHtRRymS', TRUE);

@@ -51,7 +51,13 @@ CREATE TABLE IF NOT EXISTS visits (
   pet_id INT(4) UNSIGNED NOT NULL,
   visit_date DATE,
   description VARCHAR(255),
-  FOREIGN KEY (pet_id) REFERENCES pets(id)
+  vet_id INT(4) UNSIGNED,
+  start_time TIME,
+  duration_minutes INT,
+  status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED',
+  FOREIGN KEY (pet_id) REFERENCES pets(id),
+  FOREIGN KEY (vet_id) REFERENCES vets(id) ON DELETE SET NULL,
+  INDEX visits_vet_date (vet_id, visit_date)
 ) engine=InnoDB;
 
 CREATE TABLE IF NOT EXISTS users (

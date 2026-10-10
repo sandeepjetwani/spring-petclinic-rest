@@ -51,6 +51,9 @@ INSERT INTO visits (pet_id, visit_date, description) SELECT 7, '2010-03-04', 'ra
 INSERT INTO visits (pet_id, visit_date, description) SELECT 8, '2011-03-04', 'rabies shot' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=2);
 INSERT INTO visits (pet_id, visit_date, description) SELECT 8, '2009-06-04', 'neutered' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=3);
 INSERT INTO visits (pet_id, visit_date, description) SELECT 7, '2008-09-04', 'spayed' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=4);
+INSERT INTO visits (pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) SELECT 1, '2026-11-02', 'annual checkup', 2, '10:00', 30, 'SCHEDULED' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=5);
+INSERT INTO visits (pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) SELECT 3, '2026-11-02', 'vaccination', 2, '11:00', 45, 'SCHEDULED' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=6);
+INSERT INTO visits (pet_id, visit_date, description, vet_id, start_time, duration_minutes, status) SELECT 2, '2026-11-03', 'dental check', 3, '09:30', 30, 'CANCELLED' WHERE NOT EXISTS (SELECT * FROM visits WHERE id=7);
 
 INSERT INTO users(username, password, enabled) SELECT 'admin', '$2a$10$ymaklWBnpBKlgdMgkjWVF.GMGyvH8aDuTK.glFOaKw712LHtRRymS', TRUE
 WHERE NOT EXISTS (SELECT * FROM users WHERE username='admin');
