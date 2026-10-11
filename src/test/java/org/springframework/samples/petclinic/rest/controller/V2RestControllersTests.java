@@ -16,6 +16,7 @@ import org.springframework.samples.petclinic.rest.controller.v2.PetRestControlle
 import org.springframework.samples.petclinic.rest.dto.OwnerDto;
 import org.springframework.samples.petclinic.rest.dto.PetDto;
 import org.springframework.samples.petclinic.rest.dto.PetTypeDto;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.samples.petclinic.service.clinicService.ApplicationTestConfig;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -98,7 +99,7 @@ public class V2RestControllersTests {
     void testGetOwnersPageSuccess() throws Exception {
         var pageRequest = PageRequest.of(0, 2, Sort.by("id"));
         var pageOwners = ownerMapper.toOwners(owners.subList(0, 2)).stream().toList();
-        given(this.clinicService.findOwners(null, pageRequest))
+        given(this.clinicService.searchOwners(new OwnerSearchCriteria(null, null), pageRequest))
             .willReturn(new PageImpl<>(pageOwners, pageRequest, owners.size()));
         this.mockMvc.perform(get("/api/v2/owners?page=0&size=2")
                 .accept(MediaType.APPLICATION_JSON))
@@ -132,4 +133,30 @@ public class V2RestControllersTests {
             .andExpect(jsonPath("$.totalElements").value(2))
             .andExpect(jsonPath("$.totalPages").value(1));
     }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testSearchOwnersByCitySortedByLastName() throws Exception {
+        var pageRequest = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "lastName"));
+        var madisonOwners = ownerMapper.toOwners(List.of(owners.get(0))).stream().toList();
+        given(this.clinicService.searchOwners(new OwnerSearchCriteria(null, "Madison"), pageRequest))
+            .willReturn(new PageImpl<>(madisonOwners, pageRequest, 1));
+        this.mockMvc.perform(get("/api/v2/owners?city=Madison&sort=lastName&direction=desc&page=0&size=10")
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].city").value("Madison"))
+            .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    @WithMockUser(roles = "OWNER_ADMIN")
+    void testSearchOwnersRejectsUnknownSortOptions() throws Exception {
+        this.mockMvc.perform(get("/api/v2/owners?sort=telephone")
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest());
+        this.mockMvc.perform(get("/api/v2/owners?direction=sideways")
+                .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest());
+    }
+
 }

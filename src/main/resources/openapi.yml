@@ -142,7 +142,7 @@ paths:
         - owner-v2
       operationId: listOwnersPage
       summary: Lists pet owners with pagination
-      description: Returns a page of pet owners.
+      description: Returns a page of pet owners, optionally filtered by last name and city and sorted by a field.
       parameters:
         - name: lastName
           in: query
@@ -151,6 +151,34 @@ paths:
           schema:
             type: string
             example: Davis
+        - name: city
+          in: query
+          description: City (exact match).
+          required: false
+          schema:
+            type: string
+            example: Madison
+        - name: sort
+          in: query
+          description: Field to sort by.
+          required: false
+          schema:
+            type: string
+            enum:
+              - id
+              - lastName
+              - city
+            default: id
+        - name: direction
+          in: query
+          description: Sort direction.
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: asc
         - name: page
           in: query
           description: Zero-based page index.

@@ -83,5 +83,10 @@ public interface OwnerRepository {
      */
 	void delete(Owner owner) throws DataAccessException;
 
+    /**
+     * Owners matching every non-null filter in {@code criteria}, with their pets and visits.
+     * Sorting supports the {@code id}, {@code lastName} and {@code city} properties.
+     */
+    Page<Owner> search(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException;
 
 }

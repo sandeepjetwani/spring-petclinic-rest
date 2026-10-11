@@ -15,6 +15,9 @@
  */
 package org.springframework.samples.petclinic.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
@@ -39,6 +42,8 @@ import java.util.function.Supplier;
  */
 @Service
 public class ClinicServiceImpl implements ClinicService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ClinicServiceImpl.class);
 
     private final PetRepository petRepository;
     private final VetRepository vetRepository;
@@ -135,6 +140,20 @@ public class ClinicServiceImpl implements ClinicService {
             return ownerRepository.findByLastName(lastName, pageable);
         }
         return ownerRepository.findAll(pageable);
+    }
+
+    @Override
+    @Cacheable("ownerSearch")
+    public Page<Owner> searchOwners(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException {
+        OwnerSearchCriteria normalized = criteria.normalized();
+        Page<Owner> owners = findOwnersPage(normalized, pageable);
+        logger.info("Owner search {} (page {}) returned {}", normalized, pageable.getPageNumber(), owners.getContent());
+        return owners;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Owner> findOwnersPage(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException {
+        return ownerRepository.search(criteria, pageable);
     }
 
     @Override

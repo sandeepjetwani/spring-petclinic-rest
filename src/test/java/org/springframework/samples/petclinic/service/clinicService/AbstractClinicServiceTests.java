@@ -21,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.samples.petclinic.model.*;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.samples.petclinic.util.EntityUtils;
 import org.springframework.test.context.ContextConfiguration;
@@ -523,6 +524,52 @@ abstract class AbstractClinicServiceTests {
                     && actual.getId().equals(expected.getId()))).isTrue();
         }
     }
+
+    @Test
+    void shouldSearchOwnersByCity() {
+        Page<Owner> owners = this.clinicService.searchOwners(
+            new OwnerSearchCriteria(null, "Madison"), PageRequest.of(0, 2, Sort.by("id")));
+
+        assertThat(owners.getTotalElements()).isEqualTo(4);
+        assertThat(owners.getTotalPages()).isEqualTo(2);
+        assertThat(owners.getContent()).isNotEmpty().allMatch(owner -> owner.getCity().equals("Madison"));
+    }
+
+    @Test
+    void shouldSearchOwnersByLastNameAndCity() {
+        Page<Owner> owners = this.clinicService.searchOwners(
+            new OwnerSearchCriteria("Davis", "Windsor"), PageRequest.of(0, 10, Sort.by("id")));
+
+        assertThat(owners.getTotalElements()).isEqualTo(1);
+        assertThat(owners.getContent()).allMatch(owner -> owner.getLastName().equals("Davis"));
+    }
+
+    @Test
+    void shouldTreatBlankSearchFiltersAsAbsent() {
+        Page<Owner> owners = this.clinicService.searchOwners(
+            new OwnerSearchCriteria(" ", ""), PageRequest.of(0, 5, Sort.by("id")));
+
+        assertThat(owners.getTotalElements()).isEqualTo(10);
+        assertThat(owners.getTotalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldSortSearchResultsByLastName() {
+        Page<Owner> owners = this.clinicService.searchOwners(
+            new OwnerSearchCriteria(null, null), PageRequest.of(0, 5, Sort.by("lastName")));
+
+        assertThat(owners.getTotalElements()).isEqualTo(10);
+        assertThat(owners.getContent()).extracting(Owner::getLastName).isSorted();
+    }
+
+    @Test
+    void shouldLoadPetsWithSearchResults() {
+        Page<Owner> owners = this.clinicService.searchOwners(
+            new OwnerSearchCriteria(null, "Madison"), PageRequest.of(0, 10, Sort.by("id")));
+
+        assertThat(owners.getContent()).allMatch(owner -> !owner.getPets().isEmpty());
+    }
+
 
     void clearCache() {}
 }

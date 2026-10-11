@@ -16,7 +16,9 @@
 package org.springframework.samples.petclinic.repository.jpa;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -28,8 +30,10 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -123,4 +127,40 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
 		this.em.remove(this.em.contains(owner) ? owner : this.em.merge(owner));
 	}
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Page<Owner> search(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException {
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        Map<String, Object> params = new HashMap<>();
+        if (criteria.lastName() != null) {
+            where.append(" AND owner.lastName LIKE :lastName");
+            params.put("lastName", criteria.lastName() + "%");
+        }
+        if (criteria.city() != null) {
+            where.append(" AND owner.city = :city");
+            params.put("city", criteria.city());
+        }
+
+        Query query = this.em.createQuery("SELECT owner FROM Owner owner" + where + orderBy(pageable.getSort()));
+        Query countQuery = this.em.createQuery("SELECT COUNT(owner) FROM Owner owner" + where);
+        params.forEach((name, value) -> {
+            query.setParameter(name, value);
+            countQuery.setParameter(name, value);
+        });
+        query.setFirstResult((int) pageable.getOffset());
+        query.setMaxResults(pageable.getPageSize());
+        List<Owner> owners = query.getResultList();
+        long total = (long) countQuery.getSingleResult();
+        return new PageImpl<>(owners, pageable, total);
+    }
+
+    private static String orderBy(Sort sort) {
+        Sort.Order order = sort.stream().findFirst().orElse(Sort.Order.asc("id"));
+        String property = switch (order.getProperty()) {
+            case "lastName" -> "owner.lastName";
+            case "city" -> "owner.city";
+            default -> "owner.id";
+        };
+        return " ORDER BY " + property + (order.isDescending() ? " DESC" : " ASC") + ", owner.id";
+    }
 }

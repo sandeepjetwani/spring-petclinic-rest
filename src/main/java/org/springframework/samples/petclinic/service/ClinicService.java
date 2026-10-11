@@ -28,6 +28,7 @@ import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.model.Specialty;
 import org.springframework.samples.petclinic.model.Vet;
 import org.springframework.samples.petclinic.model.Visit;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 
 /**
  * Mostly used as a facade so all controllers have a single point of entry
@@ -56,6 +57,7 @@ public interface ClinicService {
 	Owner findOwnerById(int id) throws DataAccessException;
 	Collection<Owner> findAllOwners() throws DataAccessException;
 	Page<Owner> findOwners(String lastName, Pageable pageable) throws DataAccessException;
+    Page<Owner> searchOwners(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException;
 	void saveOwner(Owner owner) throws DataAccessException;
 	void deleteOwner(Owner owner) throws DataAccessException;
 	Collection<Owner> findOwnerByLastName(String lastName) throws DataAccessException;
