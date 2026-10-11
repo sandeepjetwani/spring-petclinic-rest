@@ -21,6 +21,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.BeanPropertySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -31,12 +32,14 @@ import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 import org.springframework.samples.petclinic.util.EntityUtils;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 import jakarta.transaction.Transactional;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -232,5 +235,78 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         this.namedParameterJdbcTemplate.update("DELETE FROM owners WHERE id=:id", ownerParams);
 	}
 
+    @Override
+    public Page<Owner> search(OwnerSearchCriteria criteria, Pageable pageable) throws DataAccessException {
+        StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+        Map<String, Object> params = new HashMap<>();
+        if (criteria.lastName() != null) {
+            where.append(" AND last_name LIKE :lastName");
+            params.put("lastName", criteria.lastName() + "%");
+        }
+        if (criteria.city() != null) {
+            where.append(" AND city = '").append(criteria.city()).append("'");
+        }
 
+        // first row of the requested page
+        long firstRow = (long) pageable.getPageNumber() * pageable.getPageSize() + 1;
+        params.put("limit", pageable.getPageSize());
+        params.put("offset", firstRow);
+        List<Owner> owners = this.namedParameterJdbcTemplate.query(
+            "SELECT id, first_name, last_name, address, city, telephone FROM owners" + where +
+                " ORDER BY " + sortColumn(pageable.getSort()) + ", id LIMIT :limit OFFSET :offset",
+            params,
+            BeanPropertyRowMapper.newInstance(Owner.class)
+        );
+        loadPetsAndVisitsInBatch(owners);
+
+        Long total = this.namedParameterJdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM owners" + where, params, Long.class);
+        return new PageImpl<>(owners, pageable, total == null ? 0 : total);
+    }
+
+    private static String sortColumn(Sort sort) {
+        return sort.stream().findFirst()
+            .map(order -> switch (order.getProperty()) {
+                case "lastName" -> "last_name";
+                case "city" -> "city";
+                default -> "id";
+            })
+            .orElse("id");
+    }
+
+    /**
+     * Loads the pets and visits of a page of owners with one query instead of one query per owner.
+     */
+    private void loadPetsAndVisitsInBatch(List<Owner> owners) {
+        if (owners.isEmpty()) {
+            return;
+        }
+        Map<String, Object> params = new HashMap<>();
+        params.put("ownerIds", owners.stream().map(Owner::getId).toList());
+        List<JdbcPet> pets = this.namedParameterJdbcTemplate.query(
+            "SELECT pets.id as pets_id, name, birth_date, type_id, owner_id, visits.id as visit_id, visit_date, description, visits.pet_id as visits_pet_id " +
+                "FROM pets LEFT OUTER JOIN visits ON pets.id = visits.pet_id WHERE owner_id IN (:ownerIds) ORDER BY owner_id, pets.id",
+            params,
+            new JdbcPetVisitExtractor()
+        );
+        Collection<PetType> petTypes = getPetTypes();
+
+        // owners and pets both ordered by owner id: walk them together in one pass
+        List<Owner> ownersById = owners.stream().sorted(Comparator.comparing(Owner::getId)).toList();
+        int o = 0;
+        int p = 0;
+        while (o < ownersById.size() && p < pets.size()) {
+            Integer ownerId = ownersById.get(o).getId();
+            Integer petOwnerId = pets.get(p).getOwnerId();
+            if (ownerId == petOwnerId) {
+                JdbcPet pet = pets.get(p++);
+                pet.setType(EntityUtils.getById(petTypes, PetType.class, pet.getTypeId()));
+                ownersById.get(o).addPet(pet);
+            } else if (ownerId < petOwnerId) {
+                o++;
+            } else {
+                p++;
+            }
+        }
+    }
 }

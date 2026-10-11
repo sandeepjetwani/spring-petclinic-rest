@@ -25,6 +25,7 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
+import org.springframework.samples.petclinic.repository.OwnerSearchCriteria;
 
 /**
  * Spring Data JPA specialization of the {@link OwnerRepository} interface
@@ -55,4 +56,16 @@ public interface SpringDataOwnerRepository extends OwnerRepository, Repository<O
     @Override
     @Query("SELECT owner FROM Owner owner left join fetch owner.pets WHERE owner.id =:id")
     Owner findById(@Param("id") int id);
+
+    @Query(
+        value = "SELECT owner FROM Owner owner WHERE (:lastName IS NULL OR owner.lastName LIKE CONCAT(:lastName, '%')) " +
+            "AND (:city IS NULL OR owner.city = :city)",
+        countQuery = "SELECT COUNT(owner) FROM Owner owner WHERE (:lastName IS NULL OR owner.lastName LIKE CONCAT(:lastName, '%')) " +
+            "AND (:city IS NULL OR owner.city = :city)")
+    Page<Owner> search(@Param("lastName") String lastName, @Param("city") String city, Pageable pageable);
+
+    @Override
+    default Page<Owner> search(OwnerSearchCriteria criteria, Pageable pageable) {
+        return search(criteria.lastName(), criteria.city(), pageable);
+    }
 }
